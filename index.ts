@@ -124,7 +124,7 @@ setInterval(() => {
           }
 
           const match: string[] | null = content.match(
-            /#!promote\s+(\w+)/,
+            /#!promote\s+([\w\.]+)/,
           );
           if (!match) continue;
           if (!match[1]) {
@@ -155,7 +155,7 @@ setInterval(() => {
           }
 
           const match: string[] | null = content.match(
-            /#!demote\s+(\w+)/,
+            /#!demote\s+([\w\.]+)/,
           );
           if (!match) continue;
           if (!match[1]) {
