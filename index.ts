@@ -42,7 +42,7 @@ setInterval(() => {
     activeScans.add(token);
     unb.talk.getNewMessages(token).then(async (messages) => {
       for (const msg of messages) {
-        if (msg.systemMessage !== "") return;
+        if (msg.systemMessage !== "") continue;
         if (!memory[token]) memory[token] = [];
 
         let content = msg.message;
