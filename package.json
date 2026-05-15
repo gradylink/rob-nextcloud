@@ -1,0 +1,16 @@
+{
+  "name": "rob-nextcloud",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@gradylink/unb": "npm:@jsr/gradylink__unb",
+    "groq-sdk": "^1.2.0"
+  }
+}
