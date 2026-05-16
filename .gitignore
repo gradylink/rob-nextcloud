@@ -1,4 +1,5 @@
 node_modules/
+models/
 .env
 settings.json
 mods.json

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@gradylink/unb": "npm:@jsr/gradylink__unb",
-    "groq-sdk": "^1.2.0"
+    "groq-sdk": "^1.2.0",
+    "node-llama-cpp": "^3.18.1"
   }
 }
