@@ -217,43 +217,47 @@ setInterval(() => {
           continue;
         }
 
-        const completion = await groq.chat.completions.create({
-          model: settings.model,
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt.replace(
-                "{convoName}",
-                unb.talk.rooms[token]!.name,
-              ),
-            },
-            ...memory[token].map((message) => ({
-              role: message.user === Bun.env.NEXTCLOUD_USERNAME
-                ? "assistant"
-                : "user",
-              name: message.user,
-              content: message.message,
-            })) as ChatCompletionMessageParam[],
-          ],
-        });
-        if (completion.choices.length < 1) continue;
+        try {
+          const completion = await groq.chat.completions.create({
+            model: settings.model,
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt.replace(
+                  "{convoName}",
+                  unb.talk.rooms[token]!.name,
+                ),
+              },
+              ...memory[token].map((message) => ({
+                role: message.user === Bun.env.NEXTCLOUD_USERNAME
+                  ? "assistant"
+                  : "user",
+                name: message.user,
+                content: message.message,
+              })) as ChatCompletionMessageParam[],
+            ],
+          });
+          if (completion.choices.length < 1) continue;
 
-        let response = completion.choices[0]?.message.content as string;
+          let response = completion.choices[0]?.message.content as string;
 
-        // Clean up response
-        if (response.startsWith("{rob|Rob}: ")) {
-          response = response.replace("{rob|Rob}: ", "");
+          // Clean up response
+          if (response.startsWith("{rob|Rob}: ")) {
+            response = response.replace("{rob|Rob}: ", "");
+          }
+          if (msg.message.includes("#!memory")) {
+            response = response.replaceAll(/{[\w\.]+\|([^{}]+)}/g, "$1");
+          } else {
+            response = response.replaceAll(/{([\w\.]+)\|[^{}]+}/g, "@$1");
+          }
+
+          await unb.talk.sendMessage(
+            token,
+            response,
+          );
+        } catch (e) {
+          console.warn(e);
         }
-        if (msg.message.includes("#!memory")) {
-          response = response.replaceAll(/{[\w\.]+\|([^{}]+)}/g, "$1");
-        } else {
-          response = response.replaceAll(/{([\w\.]+)\|[^{}]+}/g, "@$1");
-        }
-
-        await unb.talk.sendMessage(
-          token,
-          response,
-        );
       }
 
       activeScans.delete(token);
