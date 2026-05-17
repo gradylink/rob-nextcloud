@@ -28,12 +28,14 @@ await unb.talk.setup();
 interface MessageInfo {
   user: string;
   message: string;
+  imageUrl?: string;
 }
 
 const memory: Record<string, MessageInfo[]> = {};
 
 interface Settings {
   maxMemory: number;
+  maxImageMemory: number;
   maxMessageLength: number;
   model: string;
   local: boolean;
@@ -44,6 +46,7 @@ const settingParseMap: Record<
   (str: string) => Settings[keyof Settings]
 > = {
   maxMemory: (str) => parseInt(str),
+  maxImageMemory: (str) => parseInt(str),
   maxMessageLength: (str) => parseInt(str),
   model: (str) => str,
   local: (str) => str == "true",
@@ -51,6 +54,7 @@ const settingParseMap: Record<
 
 const defaultSettings: Settings = {
   maxMemory: 16,
+  maxImageMemory: 5,
   maxMessageLength: 200,
   model: "llama-3.1-8b-instant",
   local: false,
@@ -195,8 +199,37 @@ setInterval(() => {
         content = `{${msg.actorId}|${msg.actorDisplayName}}: ${content}`;
 
         if (content.length > settings.maxMessageLength) continue;
-        memory[token].push({ user: msg.actorId, message: content });
+        if (
+          msg.messageParameters.file &&
+          msg.messageParameters.file.mimetype.startsWith("image")
+        ) {
+          const response = await unb.makeRequest(
+            "GET",
+            `/core/preview?fileId=${msg.messageParameters.file.id}&x=${msg.messageParameters.file.width}&y=${msg.messageParameters.file.height}`,
+          );
+          const image = new Bun.Image(await response.arrayBuffer());
+
+          memory[token].push({
+            user: msg.actorId,
+            message: content,
+            imageUrl: await image.dataurl(),
+          });
+        } else {
+          memory[token].push({ user: msg.actorId, message: content });
+        }
+
         if (memory[token].length > settings.maxMemory) memory[token].shift();
+        if (memory[token].length > settings.maxImageMemory) {
+          let images = 0;
+          for (let i = memory[token].length - 1; i >= 0; i--) {
+            if (memory[token][i]?.imageUrl) {
+              images++;
+              if (images > settings.maxImageMemory) {
+                delete memory[token][i]?.imageUrl;
+              }
+            }
+          }
+        }
 
         if (msg.actorId === Bun.env.NEXTCLOUD_USERNAME) continue;
 
@@ -363,7 +396,15 @@ setInterval(() => {
                   ? "assistant"
                   : "user",
                 name: message.user,
-                content: message.message,
+                content: message.imageUrl
+                  ? [{
+                    type: "text",
+                    text: message.message,
+                  }, {
+                    type: "image_url",
+                    image_url: { url: message.imageUrl },
+                  }]
+                  : message.message,
               })) as ChatCompletionMessageParam[],
             ];
 
