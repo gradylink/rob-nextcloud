@@ -298,6 +298,7 @@ setInterval(() => {
           }
 
           // Clean up response
+          response = response.replace(/<think>[\s\S]*?<\/think>/g, "");
           if (response.startsWith("{rob|Rob}: ")) {
             response = response.replace("{rob|Rob}: ", "");
           }
