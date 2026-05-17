@@ -206,7 +206,11 @@ setInterval(() => {
             Object.values(msg.messageParameters).find((param) =>
                 param.type === "user" && param.id === Bun.env.NEXTCLOUD_USERNAME
               ) != null)
-        ) continue;
+        ) {
+          if (!/(?:(?:^|[.,;?])\s*rob|rob\s*(?:$|[.,;?]))/i.test(msg.message)) {
+            continue;
+          }
+        }
 
         if (content.includes("#!help")) {
           await unb.talk.sendMessage(
