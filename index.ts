@@ -298,12 +298,13 @@ setInterval(() => {
           }
 
           // Clean up response
+          response = response.trim();
           response = response.replace(/<think>[\s\S]*?<\/think>/g, "");
-          response = response.replace(/^(?:{rob\|\w+}|@rob)\s*:\s*/, "");
+          response = response.replace(/^(?:{rob\|\w+}|@?rob)\s*:\s*/m, "");
           if (msg.message.includes("#!memory")) {
-            response = response.replaceAll(/{[\w\.]+\|([^{}]+)}/g, "$1");
+            response = response.replaceAll(/{[\w\.]+\|([^{}]+)}/mg, "$1");
           } else {
-            response = response.replaceAll(/{([\w\.]+)\|[^{}]+}/g, "@$1");
+            response = response.replaceAll(/{([\w\.]+)\|[^{}]+}/mg, "@$1");
           }
 
           await unb.talk.sendMessage(
