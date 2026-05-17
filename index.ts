@@ -240,7 +240,7 @@ setInterval(() => {
           continue;
         }
 
-        const currentSystemPrompt = content.includes("#custom")
+        const currentSystemPrompt = content.includes("#!custom")
           ? customSystemPrompt
           : systemPrompt;
 
