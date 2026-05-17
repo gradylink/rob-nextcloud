@@ -299,7 +299,7 @@ setInterval(() => {
 
           // Clean up response
           response = response.replace(/<think>[\s\S]*?<\/think>/g, "");
-          response = response.replace(/^{rob\|Rob}\s*:\s*/, "");
+          response = response.replace(/^(?:{rob\|Rob}|@rob)\s*:\s*/, "");
           if (msg.message.includes("#!memory")) {
             response = response.replaceAll(/{[\w\.]+\|([^{}]+)}/g, "$1");
           } else {
