@@ -197,7 +197,7 @@ setInterval(() => {
         }
         if (content.includes("#!setting")) {
           let match: string[] | null = content.match(
-            /#!setting(\s+\w+)?(\s+[\w-\.]+)?/,
+            /#!setting(\s+\w+)?(\s+[\w-\.\/]+)?/,
           );
           if (!match) continue;
           match = match.map((m) => m ? m.trim() : m);
