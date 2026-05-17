@@ -419,6 +419,7 @@ setInterval(() => {
                 tools,
                 tool_choice: "auto",
                 messages: messagesPayload,
+                reasoning_effort: "none",
               });
 
               if (completion.choices.length < 1) {
