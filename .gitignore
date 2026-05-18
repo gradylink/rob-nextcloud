@@ -3,3 +3,5 @@ models/
 .env
 settings.json
 mods.json
+tokens.json
+system-prompt.txt
