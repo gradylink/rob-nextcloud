@@ -430,7 +430,7 @@ setInterval(() => {
               const choice = completion.choices[0]!;
 
               const dumbToolMatch = (choice.message.content || "").match(
-                /[<{]function=(\w+)>\s*([\s\S]*?)\s*(?:<\/function>|})/,
+                /[<{]function=(\w+)[>:]\s*([\s\S]*?)\s*(?:<\/function>|})/,
               );
               if (!choice.message.tool_calls && dumbToolMatch) {
                 const simulatedFuncName = dumbToolMatch[1];
