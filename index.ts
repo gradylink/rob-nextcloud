@@ -219,14 +219,15 @@ setInterval(() => {
         }
 
         if (memory[token].length > settings.maxMemory) memory[token].shift();
-        if (memory[token].length > settings.maxImageMemory) {
-          let images = 0;
-          for (let i = memory[token].length - 1; i >= 0; i--) {
-            if (memory[token][i]?.imageUrl) {
-              images++;
-              if (images > settings.maxImageMemory) {
-                delete memory[token][i]?.imageUrl;
-              }
+        let images = 0;
+        if (settings.model !== "meta-llama/llama-4-scout-17b-16e-instruct") {
+          images = Infinity;
+        }
+        for (let i = memory[token].length - 1; i >= 0; i--) {
+          if (memory[token][i]?.imageUrl) {
+            images++;
+            if (images > settings.maxImageMemory) {
+              delete memory[token][i]?.imageUrl;
             }
           }
         }
