@@ -200,13 +200,18 @@ setInterval(() => {
             "GET",
             `/core/preview?fileId=${msg.messageParameters.file.id}&x=${msg.messageParameters.file.width}&y=${msg.messageParameters.file.height}`,
           );
-          const image = new Bun.Image(await response.arrayBuffer());
+          try {
+            const image = new Bun.Image(await response.arrayBuffer());
 
-          memory[token].push({
-            user: msg.actorId,
-            message: content,
-            imageUrl: await image.dataurl(),
-          });
+            memory[token].push({
+              user: msg.actorId,
+              message: content,
+              imageUrl: await image.dataurl(),
+            });
+          } catch (e) {
+            console.warn("error with image stuff idk: " + e);
+            memory[token].push({ user: msg.actorId, message: content });
+          }
         } else {
           memory[token].push({ user: msg.actorId, message: content });
         }
