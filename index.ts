@@ -244,10 +244,16 @@ setInterval(() => {
           }
         }
 
+        if (content.includes("#!clear")) {
+          memory[token] = [];
+          await unb.talk.sendMessage(token, "Memory cleared :P");
+          continue;
+        }
+
         if (content.includes("#!help")) {
           await unb.talk.sendMessage(
             token,
-            "* #!help - This message :)\n* #!custom - Lets you make me do whatever you want!\n* #!memory - My entire memory!\n* #!setting - Manage settings and stuff idk.\n* #!promote - Make someone a mod :)\n* #!demote - Remove someone as a mod",
+            "* #!help - This message :)\n* #!custom - Lets you make me do whatever you want!\n* #!memory - My entire memory!\n* #!setting - Manage settings and stuff idk.\n* #!promote - Make someone a mod :)\n* #!demote - Remove someone as a mod\n* #!clear - Clear my memory (how could you...)",
           );
           continue;
         }
