@@ -1,0 +1,19 @@
+{
+  "tasks": {
+    "start": "deno run --env-file --allow-net --allow-env --allow-read --allow-write --allow-ffi --allow-sys index.ts"
+  },
+  "imports": {
+    "@gradylink/unb": "jsr:@gradylink/unb@0.7.7",
+    "@std/encoding/base64": "jsr:@std/encoding@^1/base64",
+    "groq-sdk": "npm:groq-sdk@^1.2.0",
+    "groq-sdk/resources/chat.mjs": "npm:groq-sdk@^1.2.0/resources/chat.mjs",
+    "node-llama-cpp": "npm:node-llama-cpp@^3.18.1"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true
+  }
+}
