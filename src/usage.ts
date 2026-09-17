@@ -1,3 +1,5 @@
+import Groq from "groq-sdk";
+
 export interface RateLimitSnapshot {
   limitRequests?: number;
   remainingRequests?: number;
@@ -27,6 +29,23 @@ export const recordRateLimit = (headers: Headers): void => {
 
 export const getLastRateLimit = (): RateLimitSnapshot | undefined =>
   lastSnapshot;
+
+export const fetchFreshRateLimit = async (
+  groq: Groq,
+  model: string,
+): Promise<RateLimitSnapshot | undefined> => {
+  try {
+    const { response } = await groq.chat.completions.create({
+      model,
+      messages: [{ role: "user", content: "hi" }],
+      max_completion_tokens: 1,
+    }).withResponse();
+    recordRateLimit(response.headers);
+  } catch (e) {
+    if (e instanceof Groq.APIError && e.headers) recordRateLimit(e.headers);
+  }
+  return lastSnapshot;
+};
 
 let localFallbackActive = false;
 

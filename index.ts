@@ -4,12 +4,7 @@ import { readJson, requiredEnv } from "./src/env.ts";
 import { loadSettings } from "./src/settings.ts";
 import { loadMods } from "./src/mods.ts";
 import { ConversationMemory } from "./src/memory.ts";
-import {
-  fetchImageDataUrl,
-  getImageAttachment,
-  isAddressedToRob,
-  type TalkMessage,
-} from "./src/nextcloud.ts";
+import { isAddressedToRob, type TalkMessage } from "./src/nextcloud.ts";
 import { handleCommand } from "./src/commands.ts";
 import { generateResponse } from "./src/chat.ts";
 import { sanitizeResponse } from "./src/format.ts";
@@ -58,10 +53,10 @@ const processMessage = async (token: string, msg: TalkMessage) => {
 
   if (content.length > settings.maxMessageLength) return;
 
-  const imageAttachment = getImageAttachment(msg);
+  const imageAttachment = unb.talk.getImageAttachment(msg.messageParameters);
   if (imageAttachment) {
     try {
-      const imageUrl = await fetchImageDataUrl(unb, imageAttachment);
+      const imageUrl = await unb.talk.fetchPreviewDataUrl(imageAttachment);
       memory.push(
         token,
         { user: msg.actorId, message: content, imageUrl },
@@ -84,6 +79,7 @@ const processMessage = async (token: string, msg: TalkMessage) => {
     token,
     actorId: msg.actorId,
     clearMemory: () => memory.clear(token),
+    groq,
   });
   if (handled) return;
 

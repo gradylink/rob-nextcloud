@@ -1,7 +1,8 @@
+import type Groq from "groq-sdk";
 import type { UniversalNextcloudBot } from "@gradylink/unb";
 import { isAdmin, isMod, type Mods, saveMods } from "./mods.ts";
 import { type Settings, updateSetting } from "./settings.ts";
-import { getLastRateLimit, isLocalFallbackActive } from "./usage.ts";
+import { fetchFreshRateLimit, isLocalFallbackActive } from "./usage.ts";
 
 export interface CommandContext {
   settings: Settings;
@@ -10,6 +11,7 @@ export interface CommandContext {
   token: string;
   actorId: string;
   clearMemory: () => void;
+  groq?: Groq;
 }
 
 type Permission = "any" | "mod" | "admin";
@@ -105,15 +107,19 @@ const renderProgressBar = (used: number, limit: number): string => {
   return "▰".repeat(filled) + "▱".repeat(PROGRESS_BAR_LENGTH - filled);
 };
 
+const RESET_DURATION_PATTERN =
+  /(?:(\d+)h)?(?:(\d+)m(?!s))?(?:([\d.]+)s)?(?:(\d+)ms)?/;
+
 const roundResetTime = (raw: string | undefined): string => {
   if (!raw) return "?";
-  const match = raw.match(/(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/);
+  const match = raw.match(RESET_DURATION_PATTERN);
   if (!match) return raw;
 
   const totalSeconds = Math.round(
     Number(match[1] ?? 0) * 3600 +
       Number(match[2] ?? 0) * 60 +
-      Number(match[3] ?? 0),
+      Number(match[3] ?? 0) +
+      Number(match[4] ?? 0) / 1000,
   );
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -134,17 +140,19 @@ const renderUsage = (
     renderProgressBar(used, limit)
   }\n${used}/${limit} used`;
 
-const usageHandler = (
+const usageHandler = async (
   _args: string,
   ctx: CommandContext,
 ): Promise<string> => {
   if (ctx.settings.local || isLocalFallbackActive()) {
-    return Promise.resolve("Using local model, no rate limit.");
+    return "Using local model, no rate limit.";
   }
 
-  const snapshot = getLastRateLimit();
+  const snapshot = ctx.groq
+    ? await fetchFreshRateLimit(ctx.groq, ctx.settings.model)
+    : undefined;
   if (!snapshot) {
-    return Promise.resolve("Haven't talked to groq yet, so idk my usage :/");
+    return "Haven't talked to groq yet, so idk my usage :/";
   }
 
   const requestsLimit = snapshot.limitRequests ?? 0;
@@ -152,18 +160,16 @@ const usageHandler = (
   const tokensLimit = snapshot.limitTokens ?? 0;
   const tokensUsed = tokensLimit - (snapshot.remainingTokens ?? 0);
 
-  return Promise.resolve(
-    `${
-      renderUsage(
-        "Requests",
-        requestsUsed,
-        requestsLimit,
-        snapshot.resetRequests ?? "",
-      )
-    }\n\n${
-      renderUsage("Tokens", tokensUsed, tokensLimit, snapshot.resetTokens ?? "")
-    }`,
-  );
+  return `${
+    renderUsage(
+      "Requests",
+      requestsUsed,
+      requestsLimit,
+      snapshot.resetRequests ?? "",
+    )
+  }\n\n${
+    renderUsage("Tokens", tokensUsed, tokensLimit, snapshot.resetTokens ?? "")
+  }`;
 };
 
 const commands: CommandDef[] = [
