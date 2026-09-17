@@ -1,7 +1,7 @@
 import type { UniversalNextcloudBot } from "@gradylink/unb";
 import { isAdmin, isMod, type Mods, saveMods } from "./mods.ts";
 import { type Settings, updateSetting } from "./settings.ts";
-import { getLastRateLimit } from "./usage.ts";
+import { getLastRateLimit, isLocalFallbackActive } from "./usage.ts";
 
 export interface CommandContext {
   settings: Settings;
@@ -94,37 +94,75 @@ const settingHandler = async (
   return "Done!";
 };
 
+const PROGRESS_BAR_LENGTH = 20;
+
+const renderProgressBar = (used: number, limit: number): string => {
+  if (limit <= 0) return "░".repeat(PROGRESS_BAR_LENGTH);
+  const filled = Math.min(
+    PROGRESS_BAR_LENGTH,
+    Math.max(0, Math.round((used / limit) * PROGRESS_BAR_LENGTH)),
+  );
+  return "█".repeat(filled) + "░".repeat(PROGRESS_BAR_LENGTH - filled);
+};
+
+const roundResetTime = (raw: string | undefined): string => {
+  if (!raw) return "?";
+  const match = raw.match(/(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/);
+  if (!match) return raw;
+
+  const totalSeconds = Math.round(
+    Number(match[1] ?? 0) * 3600 +
+      Number(match[2] ?? 0) * 60 +
+      Number(match[3] ?? 0),
+  );
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${hours > 0 ? `${hours}h` : ""}${
+    minutes > 0 ? `${minutes}m` : ""
+  }${seconds}s`;
+};
+
+const renderUsage = (
+  label: string,
+  used: number,
+  limit: number,
+  resetsIn: string,
+): string =>
+  `${label} (resets in ${roundResetTime(resetsIn)}):\n${
+    renderProgressBar(used, limit)
+  }\n${used}/${limit} used`;
+
 const usageHandler = (
   _args: string,
   ctx: CommandContext,
 ): Promise<string> => {
-  if (ctx.settings.local) {
-    return Promise.resolve(
-      `Running fully on the local model \`${
-        ctx.settings.localFallbackModel || ctx.settings.model
-      }\`, so there's no usage limit :)`,
-    );
+  if (ctx.settings.local || isLocalFallbackActive()) {
+    return Promise.resolve("Using local model, no rate limit.");
   }
-
-  const fallback = ctx.settings.localFallbackModel
-    ? `falls back to local model \`${ctx.settings.localFallbackModel}\` if I get rate limited`
-    : "has no local fallback configured if I get rate limited";
 
   const snapshot = getLastRateLimit();
   if (!snapshot) {
-    return Promise.resolve(
-      `Using \`${ctx.settings.model}\` on groq, ${fallback}. Haven't talked to it yet though, so idk my usage :/`,
-    );
+    return Promise.resolve("Haven't talked to groq yet, so idk my usage :/");
   }
 
+  const requestsLimit = snapshot.limitRequests ?? 0;
+  const requestsUsed = requestsLimit - (snapshot.remainingRequests ?? 0);
+  const tokensLimit = snapshot.limitTokens ?? 0;
+  const tokensUsed = tokensLimit - (snapshot.remainingTokens ?? 0);
+
   return Promise.resolve(
-    `Using \`${ctx.settings.model}\` on groq, ${fallback}.\n` +
-      `Requests: ${snapshot.remainingRequests ?? "?"}/${
-        snapshot.limitRequests ?? "?"
-      } left (resets in ${snapshot.resetRequests ?? "?"})\n` +
-      `Tokens: ${snapshot.remainingTokens ?? "?"}/${
-        snapshot.limitTokens ?? "?"
-      } left (resets in ${snapshot.resetTokens ?? "?"})`,
+    `${
+      renderUsage(
+        "Requests",
+        requestsUsed,
+        requestsLimit,
+        snapshot.resetRequests ?? "",
+      )
+    }\n\n${
+      renderUsage("Tokens", tokensUsed, tokensLimit, snapshot.resetTokens ?? "")
+    }`,
   );
 };
 

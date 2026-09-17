@@ -27,3 +27,11 @@ export const recordRateLimit = (headers: Headers): void => {
 
 export const getLastRateLimit = (): RateLimitSnapshot | undefined =>
   lastSnapshot;
+
+let localFallbackActive = false;
+
+export const setLocalFallbackActive = (active: boolean): void => {
+  localFallbackActive = active;
+};
+
+export const isLocalFallbackActive = (): boolean => localFallbackActive;

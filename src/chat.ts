@@ -7,7 +7,7 @@ import type { Mods } from "./mods.ts";
 import type { MessageInfo } from "./memory.ts";
 import { runTool, tools } from "./tools.ts";
 import { runLocalChat } from "./local-model.ts";
-import { recordRateLimit } from "./usage.ts";
+import { recordRateLimit, setLocalFallbackActive } from "./usage.ts";
 
 export interface GenerateContext {
   settings: Settings;
@@ -137,12 +137,15 @@ export const generateResponse = async (
   }
 
   try {
-    return await runGroqChat(ctx);
+    const result = await runGroqChat(ctx);
+    setLocalFallbackActive(false);
+    return result;
   } catch (e) {
     if (isRateLimitError(e) && ctx.settings.localFallbackModel) {
       console.warn(
         `Groq rate limit hit, falling back to local model "${ctx.settings.localFallbackModel}"`,
       );
+      setLocalFallbackActive(true);
       return await runLocalChat(
         ctx.settings.localFallbackModel,
         ctx.systemPrompt,
