@@ -76,7 +76,6 @@ const processMessage = async (token: string, msg: TalkMessage) => {
   }
 
   if (msg.actorId === NEXTCLOUD_USERNAME) return;
-  if (!isAddressedToRob(msg, NEXTCLOUD_USERNAME)) return;
 
   const handled = await handleCommand(content, {
     settings,
@@ -87,6 +86,8 @@ const processMessage = async (token: string, msg: TalkMessage) => {
     clearMemory: () => memory.clear(token),
   });
   if (handled) return;
+
+  if (!isAddressedToRob(msg, NEXTCLOUD_USERNAME)) return;
 
   const resolvedSystemPrompt = (
     content.includes("#!custom") ? customSystemPrompt : systemPrompt

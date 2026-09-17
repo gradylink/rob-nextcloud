@@ -7,6 +7,7 @@ import type { Mods } from "./mods.ts";
 import type { MessageInfo } from "./memory.ts";
 import { runTool, tools } from "./tools.ts";
 import { runLocalChat } from "./local-model.ts";
+import { recordRateLimit } from "./usage.ts";
 
 export interface GenerateContext {
   settings: Settings;
@@ -66,12 +67,15 @@ const runGroqChat = async (ctx: GenerateContext): Promise<string> => {
   );
 
   for (let i = 0; i < 10; i++) {
-    const completion = await ctx.groq!.chat.completions.create({
-      model: ctx.settings.model,
-      tools,
-      tool_choice: "auto",
-      messages,
-    });
+    const { data: completion, response } = await ctx.groq!.chat.completions
+      .create({
+        model: ctx.settings.model,
+        tools,
+        tool_choice: "auto",
+        messages,
+      })
+      .withResponse();
+    recordRateLimit(response.headers);
 
     const choice = completion.choices[0];
     if (!choice) return "";
