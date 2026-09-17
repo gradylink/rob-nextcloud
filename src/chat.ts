@@ -125,7 +125,7 @@ export const generateResponse = async (
 
   if (ctx.settings.local) {
     return await runLocalChat(
-      ctx.settings.model,
+      ctx.settings.localFallbackModel || ctx.settings.model,
       ctx.systemPrompt,
       toLocalHistory(ctx.history, ctx.nextcloudUsername),
       latestPrompt,

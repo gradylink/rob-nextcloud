@@ -39,7 +39,9 @@ const tokens: string[] = await readJson(`${Deno.cwd()}/tokens.json`, []);
 const groq = settings.local
   ? undefined
   : new Groq({ apiKey: requiredEnv("GROQ_API_KEY") });
-if (settings.local) await preloadLocalModel(settings.model);
+if (settings.local) {
+  await preloadLocalModel(settings.localFallbackModel || settings.model);
+}
 
 console.log("Loaded!");
 
