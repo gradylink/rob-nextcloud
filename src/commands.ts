@@ -38,7 +38,7 @@ const helpHandler = (): Promise<string> =>
           ? ""
           : ` (you need to be ${
             c.permission == "mod" ? "a mod" : "an admin"
-          }) to use this.`
+          } to use this)`
       } - ${c.description}`
     )
       .join("\n"),
