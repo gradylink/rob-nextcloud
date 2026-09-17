@@ -97,12 +97,12 @@ const settingHandler = async (
 const PROGRESS_BAR_LENGTH = 20;
 
 const renderProgressBar = (used: number, limit: number): string => {
-  if (limit <= 0) return "░".repeat(PROGRESS_BAR_LENGTH);
+  if (limit <= 0) return "▱".repeat(PROGRESS_BAR_LENGTH);
   const filled = Math.min(
     PROGRESS_BAR_LENGTH,
     Math.max(0, Math.round((used / limit) * PROGRESS_BAR_LENGTH)),
   );
-  return "█".repeat(filled) + "░".repeat(PROGRESS_BAR_LENGTH - filled);
+  return "▰".repeat(filled) + "▱".repeat(PROGRESS_BAR_LENGTH - filled);
 };
 
 const roundResetTime = (raw: string | undefined): string => {
