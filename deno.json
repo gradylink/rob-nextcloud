@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "start": "deno run --env-file --allow-net --allow-env --allow-read --allow-write --allow-ffi --allow-sys index.ts"
+    "start": "deno run --env-file --allow-net --allow-env --allow-read --allow-write --allow-ffi --allow-sys --allow-run index.ts"
   },
   "imports": {
     "@gradylink/unb": "jsr:@gradylink/unb@0.7.7",

@@ -8,6 +8,7 @@ import {
 
 let llamaPromise: Promise<Llama> | undefined;
 const getLlamaInstance = (): Promise<Llama> => llamaPromise ??= getLlama();
+console.log("Local GPU Backend: " + (await getLlamaInstance()).gpu);
 
 const modelCache = new Map<string, Promise<LlamaModel>>();
 
