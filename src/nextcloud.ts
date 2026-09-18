@@ -4,8 +4,6 @@ export type TalkMessage = Awaited<
   ReturnType<UniversalNextcloudBot["talk"]["getNewMessages"]>
 >[number];
 
-const ROB_MENTION_PATTERN = /(?:(?:^|[.,;?])\s*rob|rob\s*(?:$|[.,;?]))/i;
-
 export const isAddressedToRob = (
   msg: TalkMessage,
   nextcloudUsername: string,
@@ -15,5 +13,5 @@ export const isAddressedToRob = (
     Object.values(msg.messageParameters).some(
       (param) => param.type === "user" && param.id === nextcloudUsername,
     );
-  return isReplyToRob || mentionsRob || ROB_MENTION_PATTERN.test(msg.message);
+  return isReplyToRob || mentionsRob;
 };

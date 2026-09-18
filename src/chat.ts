@@ -73,6 +73,7 @@ const runGroqChat = async (ctx: GenerateContext): Promise<string> => {
         tools,
         tool_choice: "auto",
         messages,
+        reasoning_effort: "none",
       })
       .withResponse();
     recordRateLimit(response.headers);

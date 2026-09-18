@@ -39,6 +39,7 @@ export const fetchFreshRateLimit = async (
       model,
       messages: [{ role: "user", content: "hi" }],
       max_completion_tokens: 1,
+      reasoning_effort: "none",
     }).withResponse();
     recordRateLimit(response.headers);
   } catch (e) {

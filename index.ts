@@ -9,6 +9,9 @@ import { handleCommand } from "./src/commands.ts";
 import { generateResponse } from "./src/chat.ts";
 import { sanitizeResponse } from "./src/format.ts";
 import { preloadLocalModel } from "./src/local-model.ts";
+import { scheduleDaily } from "./src/schedule.ts";
+import { findTodaysBirthdays, markBirthdayAnnounced } from "./src/birthdays.ts";
+import { TemporaryTokens } from "./src/temp-tokens.ts";
 
 const systemPrompt = await Deno.readTextFile(
   `${Deno.cwd()}/system-prompt.txt`,
@@ -39,6 +42,33 @@ if (settings.local) {
 }
 
 console.log("Loaded!");
+
+const sendGeneratedReply = async (
+  token: string,
+  actorId: string,
+  systemPromptTemplate: string,
+  forMemoryDump: boolean,
+) => {
+  const resolvedSystemPrompt = systemPromptTemplate
+    .replace("{convoName}", unb.talk.rooms[token]!.name)
+    .replace("{username}", NEXTCLOUD_USERNAME);
+
+  const response = await generateResponse({
+    settings,
+    mods,
+    unb,
+    token,
+    actorId,
+    systemPrompt: resolvedSystemPrompt,
+    history: memory.get(token),
+    nextcloudUsername: NEXTCLOUD_USERNAME,
+    groq,
+  });
+
+  if (!response) return;
+  const sanitized = sanitizeResponse(response, { forMemoryDump });
+  await unb.talk.sendMessage(token, sanitized);
+};
 
 const processMessage = async (token: string, msg: TalkMessage) => {
   if (msg.systemMessage !== "") return;
@@ -85,30 +115,13 @@ const processMessage = async (token: string, msg: TalkMessage) => {
 
   if (!isAddressedToRob(msg, NEXTCLOUD_USERNAME)) return;
 
-  const resolvedSystemPrompt = (
-    content.includes("#!custom") ? customSystemPrompt : systemPrompt
-  )
-    .replace("{convoName}", unb.talk.rooms[token]!.name)
-    .replace("{username}", NEXTCLOUD_USERNAME);
-
   try {
-    const response = await generateResponse({
-      settings,
-      mods,
-      unb,
+    await sendGeneratedReply(
       token,
-      actorId: msg.actorId,
-      systemPrompt: resolvedSystemPrompt,
-      history: memory.get(token),
-      nextcloudUsername: NEXTCLOUD_USERNAME,
-      groq,
-    });
-
-    if (!response) return;
-    const sanitized = sanitizeResponse(response, {
-      forMemoryDump: msg.message.includes("#!memory"),
-    });
-    await unb.talk.sendMessage(token, sanitized);
+      msg.actorId,
+      content.includes("#!custom") ? customSystemPrompt : systemPrompt,
+      msg.message.includes("#!memory"),
+    );
   } catch (e) {
     console.warn(e);
   }
@@ -121,9 +134,60 @@ const processToken = async (token: string) => {
   }
 };
 
+const TEMP_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const temporaryTokens = await TemporaryTokens.load();
+await temporaryTokens.prune();
+
+const openOneToOneConversation = async (userId: string): Promise<string> => {
+  const response = await unb.makeRequest(
+    "POST",
+    "/ocs/v2.php/apps/spreed/api/v4/room?format=json",
+    JSON.stringify({ roomType: 1, invite: userId }),
+  );
+  const { token } = (await response.json()).ocs.data;
+  await unb.talk.setup();
+  return token;
+};
+
+const wishHappyBirthday = async (userId: string) => {
+  const token = await openOneToOneConversation(userId);
+  await temporaryTokens.add(token, Date.now() + TEMP_TOKEN_TTL_MS);
+
+  const displayName = unb.talk.rooms[token]?.displayName ?? userId;
+  memory.push(
+    token,
+    {
+      user: "birthday",
+      message:
+        `Today is ${displayName}'s birthday! wish them a happy birthday :D`,
+    },
+    settings,
+  );
+
+  try {
+    await sendGeneratedReply(token, userId, systemPrompt, false);
+    await markBirthdayAnnounced(userId);
+  } catch (e) {
+    console.warn(`Failed to send birthday message to ${userId}: ${e}`);
+  }
+};
+
+const checkBirthdays = async () => {
+  if (!settings.birthdaysEnabled) return;
+  const userIds = await findTodaysBirthdays(unb, tokens, NEXTCLOUD_USERNAME);
+  for (const userId of userIds) {
+    await wishHappyBirthday(userId);
+  }
+};
+
+checkBirthdays();
+scheduleDaily(8, 0, checkBirthdays);
+
 const activeScans = new Set<string>();
-setInterval(() => {
-  for (const token of tokens) {
+setInterval(async () => {
+  await temporaryTokens.prune();
+
+  for (const token of [...tokens, ...temporaryTokens.tokens()]) {
     if (activeScans.has(token)) continue;
     activeScans.add(token);
     processToken(token).finally(() => activeScans.delete(token));
