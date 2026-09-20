@@ -12,6 +12,7 @@ import { preloadLocalModel } from "./src/local-model.ts";
 import { scheduleDaily } from "./src/schedule.ts";
 import { findTodaysBirthdays, markBirthdayAnnounced } from "./src/birthdays.ts";
 import { TemporaryTokens } from "./src/temp-tokens.ts";
+import { TrackedPolls } from "./src/polls.ts";
 
 const systemPrompt = await Deno.readTextFile(
   `${Deno.cwd()}/system-prompt.txt`,
@@ -33,6 +34,7 @@ const settings = await loadSettings();
 const mods = await loadMods();
 const memory = new ConversationMemory();
 const tokens: string[] = await readJson(`${Deno.cwd()}/tokens.json`, []);
+const polls = await TrackedPolls.load();
 
 const groq = settings.local
   ? undefined
@@ -63,6 +65,7 @@ const sendGeneratedReply = async (
     history: memory.get(token),
     nextcloudUsername: NEXTCLOUD_USERNAME,
     groq,
+    polls,
   });
 
   if (!response) return;

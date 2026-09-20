@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import { getReasoningEffort } from "./reasoning.ts";
 
 export interface RateLimitSnapshot {
   limitRequests?: number;
@@ -34,12 +35,13 @@ export const fetchFreshRateLimit = async (
   groq: Groq,
   model: string,
 ): Promise<RateLimitSnapshot | undefined> => {
+  const reasoningEffort = getReasoningEffort(model);
   try {
     const { response } = await groq.chat.completions.create({
       model,
       messages: [{ role: "user", content: "hi" }],
       max_completion_tokens: 1,
-      reasoning_effort: "none",
+      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
     }).withResponse();
     recordRateLimit(response.headers);
   } catch (e) {

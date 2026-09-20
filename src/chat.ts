@@ -8,6 +8,8 @@ import type { MessageInfo } from "./memory.ts";
 import { runTool, tools } from "./tools.ts";
 import { runLocalChat } from "./local-model.ts";
 import { recordRateLimit, setLocalFallbackActive } from "./usage.ts";
+import type { TrackedPolls } from "./polls.ts";
+import { getReasoningEffort } from "./reasoning.ts";
 
 export interface GenerateContext {
   settings: Settings;
@@ -20,6 +22,7 @@ export interface GenerateContext {
   history: MessageInfo[];
   nextcloudUsername: string;
   groq?: Groq;
+  polls: TrackedPolls;
 }
 
 const toLocalHistory = (
@@ -65,6 +68,7 @@ const runGroqChat = async (ctx: GenerateContext): Promise<string> => {
     ctx.history,
     ctx.nextcloudUsername,
   );
+  const reasoningEffort = getReasoningEffort(ctx.settings.model);
 
   for (let i = 0; i < 10; i++) {
     const { data: completion, response } = await ctx.groq!.chat.completions
@@ -73,7 +77,7 @@ const runGroqChat = async (ctx: GenerateContext): Promise<string> => {
         tools,
         tool_choice: "auto",
         messages,
-        reasoning_effort: "none",
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       })
       .withResponse();
     recordRateLimit(response.headers);
@@ -107,6 +111,7 @@ const runGroqChat = async (ctx: GenerateContext): Promise<string> => {
           unb: ctx.unb,
           token: ctx.token,
           actorId: ctx.actorId,
+          polls: ctx.polls,
         },
       );
       messages.push({

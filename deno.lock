@@ -1,15 +1,15 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@gradylink/unb@0.9.1": "0.9.1",
+    "jsr:@gradylink/unb@0.10.0": "0.10.0",
     "npm:fast-xml-parser@^5.11.1": "5.11.1",
     "npm:groq-sdk@^1.2.0": "1.6.0",
     "npm:ical.js@^2.2.1": "2.2.1",
     "npm:node-llama-cpp@^3.18.1": "3.21.1"
   },
   "jsr": {
-    "@gradylink/unb@0.9.1": {
-      "integrity": "d1cfad22e4d47887814fedc31ed13f89a1c996e9cf0b1dc061d42ce2eaea33a2",
+    "@gradylink/unb@0.10.0": {
+      "integrity": "dd345edd0a67886cdee2b826fe7a27ede0a7931d9809d173d33a87343167919e",
       "dependencies": [
         "npm:fast-xml-parser",
         "npm:ical.js"
@@ -770,7 +770,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@gradylink/unb@0.9.1",
+      "jsr:@gradylink/unb@0.10.0",
       "npm:groq-sdk@^1.2.0",
       "npm:node-llama-cpp@^3.18.1"
     ]

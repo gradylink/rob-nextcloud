@@ -3,7 +3,7 @@
     "start": "deno run --env-file --allow-net --allow-env --allow-read --allow-write --allow-ffi --allow-sys --allow-run index.ts"
   },
   "imports": {
-    "@gradylink/unb": "jsr:@gradylink/unb@0.9.1",
+    "@gradylink/unb": "jsr:@gradylink/unb@0.10.0",
     "groq-sdk": "npm:groq-sdk@^1.2.0",
     "groq-sdk/resources/chat.mjs": "npm:groq-sdk@^1.2.0/resources/chat.mjs",
     "node-llama-cpp": "npm:node-llama-cpp@^3.18.1"
@@ -15,5 +15,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true
   },
-  "nodeModulesDir": "auto"
+  "nodeModulesDir": "auto",
+  "allowScripts": ["npm:node-llama-cpp@3.21.1"]
 }
