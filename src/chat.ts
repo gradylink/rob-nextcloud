@@ -1,7 +1,7 @@
 import Groq from "groq-sdk";
 import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat.mjs";
 import type { ChatHistoryItem } from "node-llama-cpp";
-import type { UniversalNextcloudBot } from "@gradylink/unb";
+import type { TextBasedChannel } from "discord.js";
 import type { Settings } from "./settings.ts";
 import type { Mods } from "./mods.ts";
 import type { MessageInfo } from "./memory.ts";
@@ -14,23 +14,23 @@ import { getReasoningEffort } from "./reasoning.ts";
 export interface GenerateContext {
   settings: Settings;
   mods: Mods;
-  unb: UniversalNextcloudBot;
-  token: string;
+  channel: TextBasedChannel;
+  channelId: string;
   actorId: string;
   systemPrompt: string;
   /** Conversation memory, latest message last. */
   history: MessageInfo[];
-  nextcloudUsername: string;
+  botUserId: string;
   groq?: Groq;
   polls: TrackedPolls;
 }
 
 const toLocalHistory = (
   history: MessageInfo[],
-  nextcloudUsername: string,
+  botUserId: string,
 ): ChatHistoryItem[] =>
   history.slice(0, -1).map((msg): ChatHistoryItem =>
-    msg.user === nextcloudUsername
+    msg.user === botUserId
       ? { type: "model", response: [msg.message] }
       : { type: "user", text: msg.message }
   );
@@ -38,18 +38,13 @@ const toLocalHistory = (
 const toGroqMessages = (
   systemPrompt: string,
   history: MessageInfo[],
-  nextcloudUsername: string,
+  botUserId: string,
 ): ChatCompletionMessageParam[] => [
   { role: "system", content: systemPrompt },
   ...history.map((message) => ({
-    role: message.user === nextcloudUsername ? "assistant" : "user",
+    role: message.user === botUserId ? "assistant" : "user",
     name: message.user,
-    content: message.imageUrl
-      ? [
-        { type: "text", text: message.message },
-        { type: "image_url", image_url: { url: message.imageUrl } },
-      ]
-      : message.message,
+    content: message.message,
   })) as ChatCompletionMessageParam[],
 ];
 
@@ -66,7 +61,7 @@ const runGroqChat = async (ctx: GenerateContext): Promise<string> => {
   const messages = toGroqMessages(
     ctx.systemPrompt,
     ctx.history,
-    ctx.nextcloudUsername,
+    ctx.botUserId,
   );
   const reasoningEffort = getReasoningEffort(ctx.settings.model);
 
@@ -108,8 +103,8 @@ const runGroqChat = async (ctx: GenerateContext): Promise<string> => {
         {
           settings: ctx.settings,
           mods: ctx.mods,
-          unb: ctx.unb,
-          token: ctx.token,
+          channel: ctx.channel,
+          channelId: ctx.channelId,
           actorId: ctx.actorId,
           polls: ctx.polls,
         },
@@ -137,7 +132,7 @@ export const generateResponse = async (
     return await runLocalChat(
       ctx.settings.localFallbackModel || ctx.settings.model,
       ctx.systemPrompt,
-      toLocalHistory(ctx.history, ctx.nextcloudUsername),
+      toLocalHistory(ctx.history, ctx.botUserId),
       latestPrompt,
     );
   }
@@ -155,7 +150,7 @@ export const generateResponse = async (
       return await runLocalChat(
         ctx.settings.localFallbackModel,
         ctx.systemPrompt,
-        toLocalHistory(ctx.history, ctx.nextcloudUsername),
+        toLocalHistory(ctx.history, ctx.botUserId),
         latestPrompt,
       );
     }

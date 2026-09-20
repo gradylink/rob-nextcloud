@@ -7,7 +7,6 @@ export interface Settings {
   model: string;
   local: boolean;
   localFallbackModel: string;
-  birthdaysEnabled: boolean;
 }
 
 const settingParsers: { [K in keyof Settings]: (str: string) => Settings[K] } =
@@ -18,7 +17,6 @@ const settingParsers: { [K in keyof Settings]: (str: string) => Settings[K] } =
     model: (str) => str,
     local: (str) => str === "true",
     localFallbackModel: (str) => str,
-    birthdaysEnabled: (str) => str === "true",
   };
 
 export const defaultSettings: Settings = {
@@ -28,7 +26,6 @@ export const defaultSettings: Settings = {
   model: "qwen/qwen3.8-27b",
   local: false,
   localFallbackModel: "",
-  birthdaysEnabled: false,
 };
 
 const SETTINGS_PATH = `${Deno.cwd()}/settings.json`;

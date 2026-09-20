@@ -1,14 +1,15 @@
 import type Groq from "groq-sdk";
-import type { UniversalNextcloudBot } from "@gradylink/unb";
+import type { TextBasedChannel } from "discord.js";
 import { isAdmin, isMod, type Mods, saveMods } from "./mods.ts";
 import { type Settings, updateSetting } from "./settings.ts";
 import { fetchFreshRateLimit, isLocalFallbackActive } from "./usage.ts";
+import { sendChunked } from "./discord.ts";
 
 export interface CommandContext {
   settings: Settings;
   mods: Mods;
-  unb: UniversalNextcloudBot;
-  token: string;
+  channel: TextBasedChannel;
+  channelId: string;
   actorId: string;
   clearMemory: () => void;
   groq?: Groq;
@@ -64,12 +65,19 @@ const setMemberType = (
   }
 };
 
+const extractUserId = (arg: string): string | undefined => {
+  const mention = arg.match(/^<@!?(\d+)>$/);
+  if (mention) return mention[1];
+  return /^\d+$/.test(arg) ? arg : undefined;
+};
+
 const makePromoteOrDemoteHandler =
   (promoting: boolean) =>
   async (args: string, ctx: CommandContext): Promise<string> => {
-    const username = args.split(/\s+/)[0];
-    if (!username) return WRONG_USAGE;
-    setMemberType(ctx, username, promoting);
+    const raw = args.split(/\s+/)[0];
+    const userId = raw ? extractUserId(raw) : undefined;
+    if (!userId) return WRONG_USAGE;
+    setMemberType(ctx, userId, promoting);
     await saveMods(ctx.mods);
     return "Done!";
   };
@@ -194,14 +202,14 @@ const commands: CommandDef[] = [
   },
   {
     name: "promote",
-    usage: "#!promote <username>",
+    usage: "#!promote <@user or user id>",
     description: "Make someone a mod :)",
     permission: "admin",
     handler: makePromoteOrDemoteHandler(true),
   },
   {
     name: "demote",
-    usage: "#!demote <username>",
+    usage: "#!demote <@user or user id>",
     description: "Remove someone as a mod",
     permission: "admin",
     handler: makePromoteOrDemoteHandler(false),
@@ -243,11 +251,11 @@ export const handleCommand = async (
   if (!command?.handler) return false;
 
   if (!hasPermission(ctx.mods, ctx.actorId, command.permission)) {
-    await ctx.unb.talk.sendMessage(ctx.token, NO_PERMISSION);
+    await sendChunked(ctx.channel, NO_PERMISSION);
     return true;
   }
 
   const reply = await command.handler(match[2] ?? "", ctx);
-  await ctx.unb.talk.sendMessage(ctx.token, reply);
+  await sendChunked(ctx.channel, reply);
   return true;
 };

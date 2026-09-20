@@ -1,8 +1,8 @@
 import { readJson, writeJson } from "./env.ts";
 
 export interface TrackedPoll {
-  token: string;
-  pollId: number;
+  channelId: string;
+  messageId: string;
   question: string;
   createdBy: string;
   createdAt: number;
@@ -30,20 +30,20 @@ export class TrackedPolls {
     await this.#save();
   }
 
-  async remove(token: string, pollId: number): Promise<void> {
+  async remove(channelId: string, messageId: string): Promise<void> {
     this.#entries = this.#entries.filter(
-      (p) => !(p.token === token && p.pollId === pollId),
+      (p) => !(p.channelId === channelId && p.messageId === messageId),
     );
     await this.#save();
   }
 
-  inConversation(token: string): TrackedPoll[] {
-    return this.#entries.filter((p) => p.token === token);
+  inConversation(channelId: string): TrackedPoll[] {
+    return this.#entries.filter((p) => p.channelId === channelId);
   }
 
-  find(token: string, pollId: number): TrackedPoll | undefined {
+  find(channelId: string, messageId: string): TrackedPoll | undefined {
     return this.#entries.find(
-      (p) => p.token === token && p.pollId === pollId,
+      (p) => p.channelId === channelId && p.messageId === messageId,
     );
   }
 }

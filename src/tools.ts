@@ -1,8 +1,7 @@
 import type { ChatCompletionTool } from "groq-sdk/resources/chat.mjs";
+import type { Message, TextBasedChannel } from "discord.js";
 import { defaultSettings, type Settings, updateSetting } from "./settings.ts";
 import { isMod, type Mods } from "./mods.ts";
-import type { UniversalNextcloudBot } from "@gradylink/unb";
-import { type Poll, PollResultMode, PollStatus } from "@gradylink/unb/talk";
 import type { TrackedPolls } from "./polls.ts";
 
 export const tools: ChatCompletionTool[] = [
@@ -58,12 +57,13 @@ export const tools: ChatCompletionTool[] = [
       parameters: {
         type: "object",
         properties: {
-          username: {
+          userId: {
             type: "string",
-            description: "The username of the person you'd like to check.",
+            description:
+              "The Discord user ID of the person you'd like to check, from the {id|name} mention format.",
           },
         },
-        required: ["username"],
+        required: ["userId"],
       },
     },
   },
@@ -71,7 +71,7 @@ export const tools: ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "get_participants",
-      description: "Gets the participants in the current conversation",
+      description: "Gets the members of the current server (if applicable).",
     },
   },
   {
@@ -79,7 +79,7 @@ export const tools: ChatCompletionTool[] = [
     function: {
       name: "create_poll",
       description:
-        "Creates a poll in the current conversation and starts tracking it, so it can be looked up, listed, or ended later.",
+        "Creates a poll in the current channel and starts tracking it, so it can be looked up, listed, or ended later.",
       parameters: {
         type: "object",
         properties: {
@@ -95,13 +95,12 @@ export const tools: ChatCompletionTool[] = [
           maxVotes: {
             type: "integer",
             description:
-              "Maximum number of options a participant can vote for. Defaults to 1 (single choice). Use a higher number to allow multiple choice, or 0 for unlimited.",
+              "Set to a number greater than 1 to allow multiple choice. Defaults to 1 (single choice).",
           },
-          resultMode: {
-            type: "string",
-            enum: ["public", "hidden"],
+          durationHours: {
+            type: "integer",
             description:
-              "'public' (default) shows live results and who voted for what as votes come in. 'hidden' keeps results secret until the poll is ended.",
+              "How many hours the poll should stay open for. Defaults to 24.",
           },
         },
         required: ["question", "options"],
@@ -113,7 +112,7 @@ export const tools: ChatCompletionTool[] = [
     function: {
       name: "list_polls",
       description:
-        "Lists every poll Rob has created in the current conversation, including their current status and results.",
+        "Lists every poll Rob has created in the current channel, including their current status and results.",
     },
   },
   {
@@ -121,13 +120,14 @@ export const tools: ChatCompletionTool[] = [
     function: {
       name: "get_poll",
       description:
-        "Gets the current state and results of a specific poll Rob created in this conversation.",
+        "Gets the current state and results of a specific poll Rob created in this channel.",
       parameters: {
         type: "object",
         properties: {
           pollId: {
-            type: "integer",
-            description: "The id of the poll, from create_poll or list_polls.",
+            type: "string",
+            description:
+              "The message id of the poll, from create_poll or list_polls.",
           },
         },
         required: ["pollId"],
@@ -139,13 +139,14 @@ export const tools: ChatCompletionTool[] = [
     function: {
       name: "end_poll",
       description:
-        "Ends a poll Rob created in this conversation, so no more votes can be cast, and returns the final results.",
+        "Ends a poll Rob created in this channel, so no more votes can be cast, and returns the final results.",
       parameters: {
         type: "object",
         properties: {
           pollId: {
-            type: "integer",
-            description: "The id of the poll, from create_poll or list_polls.",
+            type: "string",
+            description:
+              "The message id of the poll, from create_poll or list_polls.",
           },
         },
         required: ["pollId"],
@@ -157,30 +158,28 @@ export const tools: ChatCompletionTool[] = [
 export interface ToolContext {
   settings: Settings;
   mods: Mods;
-  unb: UniversalNextcloudBot;
-  token: string;
+  channel: TextBasedChannel;
+  channelId: string;
   actorId: string;
   polls: TrackedPolls;
 }
 
-const formatPoll = (poll: Poll): string => {
-  const statusLabel = poll.status === PollStatus.Closed
-    ? "closed"
-    : poll.status === PollStatus.Draft
-    ? "draft"
-    : "open";
-  const optionLines = poll.options
-    .map((option, i) => {
-      const count = poll.votes?.[`option-${i}`];
-      return `  ${i}. ${option}${
-        count !== undefined ? ` (${count} vote${count === 1 ? "" : "s"})` : ""
-      }`;
-    })
+const formatPoll = (message: Message): string => {
+  const poll = message.poll;
+  if (!poll) return `Poll message ${message.id} no longer has poll data.`;
+
+  const optionLines = [...poll.answers.values()]
+    .map((answer) =>
+      `  ${answer.id}. ${answer.text}${
+        answer.voteCount !== undefined
+          ? ` (${answer.voteCount} vote${answer.voteCount === 1 ? "" : "s"})`
+          : ""
+      }`
+    )
     .join("\n");
-  const voters = poll.numVoters !== undefined
-    ? `\nTotal voters: ${poll.numVoters}`
-    : "";
-  return `Poll #${poll.id}: "${poll.question}" [${statusLabel}]\n${optionLines}${voters}`;
+  const statusLabel = poll.resultsFinalized ? "closed" : "open";
+
+  return `Poll #${message.id}: "${poll.question.text}" [${statusLabel}]\n${optionLines}`;
 };
 
 export const runTool = async (
@@ -212,15 +211,18 @@ export const runTool = async (
       }
       case "is_mod": {
         const args = JSON.parse(argsJson);
-        const info = ctx.mods[args.username];
+        const info = ctx.mods[args.userId];
         return info
-          ? `${args.username} is a ${info.type}`
-          : `${args.username} is not a moderator or admin.`;
+          ? `${args.userId} is a ${info.type}`
+          : `${args.userId} is not a moderator or admin.`;
       }
       case "get_participants": {
-        const participants = await ctx.unb.talk.getParticipants(ctx.token);
-        return participants
-          .map((p) => `{${p.actorId}|${p.displayName}}`)
+        if (!("guild" in ctx.channel) || !ctx.channel.guild) {
+          return "This isn't a server channel, so there's no member list.";
+        }
+        const members = await ctx.channel.guild.members.fetch();
+        return members
+          .map((m) => `{${m.id}|${m.displayName}}`)
           .join(", ");
       }
       case "create_poll": {
@@ -231,37 +233,42 @@ export const runTool = async (
         ) {
           return "Error: A poll needs a question and at least two options.";
         }
-        const pollId = await ctx.unb.talk.createPoll(ctx.token, {
-          question: args.question,
-          options: args.options,
-          resultMode: args.resultMode === "hidden"
-            ? PollResultMode.Hidden
-            : PollResultMode.Public,
-          maxVotes: typeof args.maxVotes === "number" ? args.maxVotes : 1,
-          draft: false,
+        if (!("send" in ctx.channel)) {
+          return "Error: Can't create a poll here.";
+        }
+        const message = await ctx.channel.send({
+          poll: {
+            question: { text: args.question },
+            answers: args.options.map((text: string) => ({ text })),
+            duration: typeof args.durationHours === "number"
+              ? args.durationHours
+              : 24,
+            allowMultiselect: typeof args.maxVotes === "number" &&
+              args.maxVotes !== 1,
+          },
         });
         await ctx.polls.add({
-          token: ctx.token,
-          pollId,
+          channelId: ctx.channelId,
+          messageId: message.id,
           question: args.question,
           createdBy: ctx.actorId,
           createdAt: Date.now(),
         });
-        return `Success: Created poll #${pollId}: "${args.question}"`;
+        return `Success: Created poll #${message.id}: "${args.question}"`;
       }
       case "list_polls": {
-        const tracked = ctx.polls.inConversation(ctx.token);
+        const tracked = ctx.polls.inConversation(ctx.channelId);
         if (tracked.length === 0) {
-          return "No polls have been created in this conversation.";
+          return "No polls have been created in this channel.";
         }
         const results = await Promise.all(
           tracked.map(async (p) => {
             try {
               return formatPoll(
-                await ctx.unb.talk.getPoll(ctx.token, p.pollId),
+                await ctx.channel.messages.fetch(p.messageId),
               );
             } catch {
-              return `Poll #${p.pollId}: "${p.question}" [unavailable]`;
+              return `Poll #${p.messageId}: "${p.question}" [unavailable]`;
             }
           }),
         );
@@ -270,18 +277,26 @@ export const runTool = async (
       case "get_poll": {
         const args = JSON.parse(argsJson);
         try {
-          return formatPoll(await ctx.unb.talk.getPoll(ctx.token, args.pollId));
+          return formatPoll(
+            await ctx.channel.messages.fetch(String(args.pollId)),
+          );
         } catch {
-          return `Error: Could not find poll #${args.pollId} in this conversation.`;
+          return `Error: Could not find poll #${args.pollId} in this channel.`;
         }
       }
       case "end_poll": {
         const args = JSON.parse(argsJson);
         try {
-          const poll = await ctx.unb.talk.closePoll(ctx.token, args.pollId);
-          return `Success: Closed poll #${poll.id}.\n\n${formatPoll(poll)}`;
+          const message = await ctx.channel.messages.fetch(
+            String(args.pollId),
+          );
+          if (!message.poll) throw new Error("no poll on message");
+          const ended = await message.poll.end();
+          return `Success: Closed poll #${ended.id}.\n\n${
+            formatPoll(ended)
+          }`;
         } catch {
-          return `Error: Could not close poll #${args.pollId}. It may not exist, or only its creator or a moderator can close it.`;
+          return `Error: Could not close poll #${args.pollId}. It may not exist, or may already be closed.`;
         }
       }
       default:
